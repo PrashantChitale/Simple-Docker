@@ -1,0 +1,217 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: 
+  name: mariadb-db
+spec:
+  replicas: 1
+  selector:
+      matchLabels:
+        app: mariadb-db     # point to service file selector
+  template:
+    metadata:
+      name: mariadb-db-pod     # point to statefulset file name
+      labels:
+        app: mariadb-db    # point to service file selector
+    spec:
+      containers:
+        - name: mariadb-db-container      
+          image: mariadb:latest      
+          ports:
+            - containerPort: 3306        # point to service file targetport
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret  # point to secret file name
+                  key: PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret   # point to secret file name
+                  key: DB_NAME
+         
+          volumeMounts:
+            - name: mariadb-pvc-vol   
+              mountPath: /var/lib/mysql  
+      volumes:
+        - name: mariadb-pvc-vol
+          persistentVolumeClaim:
+            claimName: mariadb-pvc    
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-svc
+spec: 
+  selector:
+    app: mariadb-db   # point to statefulset file app label
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
+  type: ClusterIP
+
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-sc
+provisioner: ebs.csi.aws.com    # point to storage class file provisioner
+parameters:
+  type: gp2
+  fsType: ext4
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ebs-sc     # point to storage class file storageclassname
+  resources:
+    requests:
+      storage: 5Gi  
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secret  
+data:
+  PASSWORD: MTIz             # base64 encoded value of "123"
+  DB_NAME: c3R1ZGVudF9kYg==  # base64 encoded value of "student_db"
+
+---
+
+# file for backend spring boot application
+
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+  name: student-backend-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: student-backend-app    # point to deployment file app label
+  template:
+    metadata:
+      name: student-backend-app-pod
+      labels:
+        app: student-backend-app    # point to service file selector
+    spec:
+      containers: 
+        - name: student-backend-app-container
+          image: prashantchitale22/javab:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: student-backend-svc
+spec:
+  selector:
+    app: student-backend-app    # point to deployment file app label
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: NodePort
+
+---
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: student-backend-hpa
+spec: 
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: student-backend-app   # point to deployment file name
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+            
+---
+#frontend application file react js
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-frontend-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: student-frontend-app    # point to deployment file app label
+  template:
+    metadata:
+      name: student-frontend-app-pod
+      labels:
+        app: student-frontend-app    # point to service file selector
+    spec:
+      containers: 
+        - name: student-frontend-app-container
+          image: prashantchitale22/fe:latest
+          ports:
+            - containerPort: 80
+    
+---
+
+apiVersion: v1
+kind: Service 
+metadata:
+  name: student-frontend-svc
+spec:
+  selector:
+    app: student-frontend-app    # point to deployment file app label
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  type: ClusterIP
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: student-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: student-frontend-svc
+                port:
+                  number: 80  
+      host: a8a7bab3855f8429cad3bb42edd79cb8-1187581180.us-east-1.elb.amazonaws.com

@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-backend-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: student-backend-app    # point to deployment file app label
+  template:
+    metadata:
+      name: student-backend-app-pod
+      labels:
+        app: student-backend-app    # point to service file selector
+    spec:
+      containers: 
+        - name: student-backend-app-container
+          image: prashantchitale22/javab:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_URL
+              # value: jdbc:mariadb://database-1.ckhwsuimkdl2.us-east-1.rds.amazonaws.com:3306/student_db 
+              value: jdbc:mariadb://database-1.ckhwsuimkdl2.us-east-1.rds.amazonaws.com:3306/student_db?sslMode=trust
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mariadb-secret
+                  key: PASSWORD
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secret  
+data:
+  PASSWORD: MTIzNDU2Nzg5            # base64 encoded value of "123456789"
+  DB_USERNAME: YWRtaW4=               # base64 encoded value of "admin"
+
+---
+apiVersion: v1
+kind: Service 
+metadata:
+  name: student-backend-svc
+spec:
+    selector:
+      app: student-backend-app    # point to deployment file app label
+    ports:
+      - port: 8080
+        targetPort: 8080
+        protocol: TCP
+    type: ClusterIP
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: student-backend-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: student-backend-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: student-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: student-backend-svc
+                port:
+                  number: 8080  
+      host: a8a7bab3855f8429cad3bb42edd79cb8-1187581180.us-east-1.elb.amazonaws.com
+---

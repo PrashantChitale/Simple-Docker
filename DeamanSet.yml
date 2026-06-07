@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-Dm
+  labels:
+    app: nginx
+spec:
+  selector:
+    matchLabels:
+      app: my-app-d
+  template:
+    metadata:
+      labels:
+        app: my-app-d
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
