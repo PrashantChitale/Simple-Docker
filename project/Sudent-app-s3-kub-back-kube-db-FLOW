@@ -1,0 +1,24 @@
+
+db :
+     use kubernete
+        -StatefulSet
+        -service
+        -StorageClass
+        -PersistentVolumeClaim
+        -Secret
+
+
+
+
+
+
+backend -> kubernete
+            -Deployment
+            -Secret
+            -Service
+            -HorizontalPodAutoscaler
+            -Ingress
+
+            
+frentend -> s3
+
