@@ -41,6 +41,16 @@ resource "aws_instance" "my_instance" {
         Name = "${var.ami_id}-instance"
     }
 
+    user_data = <<-EOF
+                #!/bin/bash
+                sudo apt update -y
+                sudo apt install nginx -y 
+                sudo systemctl start nginx
+                sudo systemctl emable nginx 
+                echo "Hello this is my page" > /var/www/html/index.html
+
+                EOF
+
 }
 
 
@@ -59,3 +69,4 @@ variable "instace_type"{
 variable "ssh_key_name" {
     default = "moo-key"
 }
+
