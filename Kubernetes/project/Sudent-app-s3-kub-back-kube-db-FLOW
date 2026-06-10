@@ -1,0 +1,53 @@
+
+db :
+     use kubernete
+        -StatefulSet
+        -service
+        -StorageClass
+        -PersistentVolumeClaim
+        -Secret
+
+
+
+
+
+
+backend -> kubernete
+            -Deployment
+            -Secret
+            -Service
+            -HorizontalPodAutoscaler
+            -Ingress
+
+            
+frentend -> s3
+
+
++------------------+
+|   User Browser   |
++--------+---------+
+         |
+         v
++------------------+
+| S3 + CloudFront  |
+|  Frontend Files  |
++--------+---------+
+         |
+         | REST API Calls
+         v
++------------------+
+| AWS LoadBalancer |
++--------+---------+
+         |
+         v
++------------------+
+| EKS Cluster      |
+| Spring Boot Pods |
++--------+---------+
+         |
+         v
++------------------+
+| Database         |
+| RDS/MySQL        |
++------------------+
+
