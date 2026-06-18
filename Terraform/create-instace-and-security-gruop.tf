@@ -13,7 +13,8 @@ resource "aws_security_group" "my-security" {
     }
 
     ingress {
-        from_port = 80   
+        from_port = 80   #it is define rage between from_port and to_port 
+                                 #ex- 80 to 80 means it awws only port 80
         to_port = 80      
         protocol = "TCP"
         cidr_blocks = ["0.0.0.0/0"]
@@ -32,6 +33,7 @@ resource "aws_security_group" "my-security" {
 
 }
 
+
 resource "aws_instance" "my_instance" {
     ami = var.ami_id
     instance_type = var.instace_type
@@ -42,12 +44,15 @@ resource "aws_instance" "my_instance" {
     }
 
     user_data = <<-EOF
-                #!/bin/bash
+               #!/bin/bash
                 sudo apt update -y
-                sudo apt install nginx -y 
-                sudo systemctl start nginx
-                sudo systemctl emable nginx 
+                sudo apt install nginx -y
+
+               
                 echo "Hello this is my page" > /var/www/html/index.html
+
+                sudo systemctl start nginx
+                sudo systemctl enable nginx
 
                 EOF
 
